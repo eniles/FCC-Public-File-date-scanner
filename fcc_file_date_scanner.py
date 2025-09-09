@@ -6,6 +6,9 @@ from urllib.parse import urljoin, urlparse
 import sys
 import time
 import random
+import csv
+from datetime import datetime, UTC
+import os
 
 SEARCH_STRINGS = {"10/15/24", "10/15/2024", "10/14/2024", "10/14/24"}
 visited_pages = set()
@@ -75,7 +78,7 @@ def crawl(page_url):
             results.append({
                 "page_url": page_url,
                 "pdf_url": pdf_url,
-                "found_strings": ", ".join(found)
+                "found_strings": ": ".join(found)  # Changed separator to colon
             })
         time.sleep(1.0 + random.uniform(0, 0.9))  # 1 second + variable tenths
     for subpage_url in subpages:
@@ -91,6 +94,22 @@ def print_table():
     for r in results:
         print(f"{r['page_url']:<60} {r['pdf_url']:<60} {r['found_strings']:<30}")
 
+def write_csv():
+    # Only write CSV if there are results
+    if not results:
+        print("No matching PDFs found.")
+        return
+    # Use current working directory, and current UTC time
+    now = datetime.now(UTC)
+    filename = f"fcc_public_file_scan{now.strftime('%Y%m%d_%H%M')}.csv"
+    filepath = os.path.join(os.getcwd(), filename)
+    with open(filepath, mode="w", newline='', encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Page URL", "PDF URL", "Found Strings"])
+        for r in results:
+            writer.writerow([r["page_url"], r["pdf_url"], r["found_strings"]])
+    print(f"CSV saved to {filepath}")
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python pdf_date_scanner.py <starting_url>")
@@ -98,3 +117,4 @@ if __name__ == "__main__":
     start_url = sys.argv[1]
     crawl(start_url)
     print_table()
+    write_csv()
