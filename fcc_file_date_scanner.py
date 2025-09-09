@@ -23,7 +23,7 @@ def get_links_and_pdfs(page_url):
         return [], []
     soup = BeautifulSoup(resp.content, "html.parser")
     subpages = set()
-    pdfs = set()
+    pdfs = []
     # Find the div and the table
     div = soup.find("div", class_="table-responsive")
     if not div:
@@ -37,12 +37,12 @@ def get_links_and_pdfs(page_url):
         href = link['href']
         url = urljoin(page_url, href)
         if url.endswith(".pdf"):
-            pdfs.add(url)
+            pdfs.append((url, link.text.strip()))
         else:
             # Only crawl links within same domain
             if urlparse(url).netloc == urlparse(page_url).netloc:
                 subpages.add(url)
-    return list(subpages), list(pdfs)
+    return list(subpages), pdfs
 
 def scan_pdf(pdf_url):
     print(f"Scanning PDF: {pdf_url}")
@@ -72,12 +72,13 @@ def crawl(page_url):
     visited_pages.add(page_url)
     print(f"Traversing page: {page_url}")
     subpages, pdfs = get_links_and_pdfs(page_url)
-    for pdf_url in pdfs:
+    for pdf_url, link_name in pdfs:
         found = scan_pdf(pdf_url)
         if found:
             results.append({
                 "page_url": page_url,
                 "pdf_url": pdf_url,
+                "link_name": link_name,
                 "found_strings": ": ".join(found)  # Changed separator to colon
             })
         time.sleep(1.0 + random.uniform(0, 0.9))  # 1 second + variable tenths
@@ -89,10 +90,10 @@ def print_table():
     if not results:
         print("No matching PDFs found.")
         return
-    print(f"{'Page URL':<60} {'PDF URL':<60} {'Found Strings':<30}")
-    print("-"*150)
+    print(f"{'Page URL':<60} {'PDF URL':<60} {'Link Name':<30} {'Found Strings':<30}")
+    print("-"*180)
     for r in results:
-        print(f"{r['page_url']:<60} {r['pdf_url']:<60} {r['found_strings']:<30}")
+        print(f"{r['page_url']:<60} {r['pdf_url']:<60} {r['link_name']:<30} {r['found_strings']:<30}")
 
 def write_csv():
     # Only write CSV if there are results
@@ -105,9 +106,9 @@ def write_csv():
     filepath = os.path.join(os.getcwd(), filename)
     with open(filepath, mode="w", newline='', encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["Page URL", "PDF URL", "Found Strings"])
+        writer.writerow(["Page URL", "PDF URL", "Link Name", "Found Strings"])
         for r in results:
-            writer.writerow([r["page_url"], r["pdf_url"], r["found_strings"]])
+            writer.writerow([r["page_url"], r["pdf_url"], r["link_name"], r["found_strings"]])
     print(f"CSV saved to {filepath}")
 
 if __name__ == "__main__":
